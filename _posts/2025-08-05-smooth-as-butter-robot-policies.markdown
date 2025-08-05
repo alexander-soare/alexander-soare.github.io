@@ -123,7 +123,7 @@ $$
 
 $\mathbf{\hat{A^1}}$ is our maximum likelihood estimate for what the final generated action chunk will look like if we keep following the currently predicted flow matching vector field $\mathbf{v}$ (much like the application of Tweedie’s formula in the score matching framework). To see this, just look at the right hand side of equation 4. It takes our current “noisy” data sample $\mathbf{A^\tau}$ and adds $(1 - \tau)\mathbf{v}$ to it. $(1 - \tau)$ is the time remaining in the denoising process, so we are taking one big step in the direction of $\mathbf{v}$ (think of it as *velocity* X *time* = *displacement*). Therefore, $\mathbf{Y} - \mathbf{\hat{A^1}}$ is the difference between what we *want* and what we estimate we will *get* if we keep following the current $\mathbf{v}$.
 
-The correction term is then essentially a “vector Jacobian product” (VJP). This gives us the direction of steepest descent from the current $\mathbf{A^\tau}$ required to minimize the loss $\mid\mid\mathbf{Y} - \mathbf{\hat{A^1}}\mid\mid^2$. Sound familiar? This is not too dissimilar from computing the gradient for SGD with neural networks. If that’s ringing a bell, then you’ll know that we need to choose an appropriate “learning rate”, or here the “guidance weight”. RTC makes use of the $r_\tau^2$ derived in appendix A.3 of ΠGDM (adapted to the flow matching formulation). More on $r_\tau^2$ later.
+The correction term is then essentially a “vector Jacobian product” (VJP). This gives us the direction of steepest descent from the current $\mathbf{A^\tau}$ required to minimize the loss $\mid\mid\mathbf{Y} - \mathbf{\hat{A^1}}\mid\mid^2$. This is not too dissimilar from computing the gradient for SGD with neural networks. If that’s ringing a bell, then you’ll know that we need to choose an appropriate “learning rate”, or here the “guidance weight”. RTC makes use of the $r_\tau^2$ derived in appendix A.3 of ΠGDM (adapted to the flow matching formulation). More on $r_\tau^2$ later.
 
 We can’t expect our neural network outputs to be perfect, so $\beta$ is a guidance weight clipping parameter which is used to manage instability, especially when running denoising with a small number of steps (i.e big steps). The RTC work does a sweep on $\beta$, measuring the success rate for the task the robot is meant to be doing, and the maximum acceleration between action chunks (poorer inpainting means sharper discontinuities between chunks, therefore higher acceleration). They find $\beta=5$ to be a happy medium (success rate doesn’t increase above this value, but maximum acceleration does).
 
@@ -136,7 +136,7 @@ In the next section we we will put a magnifying glass on one of the key assumpti
 
 # How we got smooth-as-butter robot policies
 
-Without following all of the math, we can at least discuss one key consideration behind how the guidance weight is derived in ΠGDM. In order to consider $p_\tau(\mathbf{Y} \mid \mathbf{A}^\tau)$ from equation 1, it’s necessary to have some assumption on the prior distribution $p_1(\mathbf{A^1})$. 
+Without following all of the steps of the derivation in ΠGDM, we can at least discuss one key consideration behind how the guidance weight is derived. In order to consider $p_\tau(\mathbf{Y} \mid \mathbf{A}^\tau)$ from equation 1, it’s necessary to have some assumption on the prior distribution $p_1(\mathbf{A^1})$. 
 
 To see why  $p_1(\mathbf{A^1})$ is being put in the spotlight, we need to understand how a concrete $\mathbf{A^\tau}$ influences our chances of recovering $\mathbf{Y}$ after denoising. So, given a concrete $\mathbf{A^\tau}$, we can ask ourselves what the distribution of $\mathbf{A^1}$ looks like. That is, we can consider $p_\tau(\mathbf{A^1} \mid \mathbf{A}^\tau)$. And given that distribution, we can ask about the likelihood that our inpainting condition  $\mathbf{W} \odot \mathbf{A^1} =  \mathbf{Y}$ is satisfied. 
 
@@ -173,11 +173,16 @@ To illustrate why this is important, let’s take an example scenario, where the
 <div class="callout">
   <div class="callout-icon">💡</div>
   <div>
-    Of course this is a slight over-simplification, as the data distribution can often be multi-modal. Nevertheless, the arguments we present here still stand in spite of that.
+    Of course this is a slight over-simplification, as the data distribution can sometimes be multi-modal.
   </div>
 </div>
 
-Note that we are not the only ones to notice this property of action trajectory generation. For example [DSRL](https://arxiv.org/abs/2506.15799) calls this “aliasing” in the sense that multiple points in noise space map to the same or similar actions. They then exploit this property to effectively reduce the search space for their RL agent.
+<div class="callout">
+  <div class="callout-icon">💡</div>
+  <div>
+    Note that we are not the only ones to notice this property of action trajectory generation. For example [DSRL](https://arxiv.org/abs/2506.15799) calls this “aliasing” in the sense that multiple points in noise space map to the same or similar actions. They then exploit this property to effectively reduce the search space for their RL agent.
+  </div>
+</div>
 
 Now we know that $\sigma_{d\mid\mathbf{o}} << 1$. This has non-trivial effect on $r_\tau^2$ as can be seen in equation 8, and ultimately on the correction term of equation 3 where $r_\tau^2$ is on the denominator. It actually results in an increase to the guidance weight (if we ignore the $\beta$ clipping).
 
@@ -188,7 +193,7 @@ Here’s the full guidance weight coefficient $(1-\tau)\tau^{-1}r_\tau^{-2}$, pl
   <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%204.png" alt="image 4.png" />
 </div>
 
-To really hammer in the intuition around why a narrower prior data distribution results in a stronger guidance term, let’s look at the problem from one more angle. Recall that the correction term of equation 3 (shown on its own in equation 6) is the VJP, and this points on the direction of steepest descent of the loss function $\mid\mid\mathbf{Y} - \mathbf{\hat{A^1}}\mid\mid^2$. The figure below shows a 1D representation of the data space, with $\mathbf{Y}$ and $\mathbf{\hat{A^1}}$ fixed at specific values. The gaussian curves represent two versions of what $p_\tau(\mathbf{A^1} \mid \mathbf{A^\tau}, \mathbf{o})$  might look like depending on $r_\tau^2$ (and ultimately $\sigma_{d\mid{\mathbf{o}}}$), and recall from equation 7 that the prior distribution $p_1(\mathbf{A^1}\mid \mathbf{o})$ directly impacts $p_\tau(\mathbf{A^1} \mid \mathbf{A^\tau}, \mathbf{o})$ . Under the wider distribution ( $\sigma_{d\mid\mathbf{o}}=1$, <span style="color: #0068ff; font-weight: bold;">blue</span> on the figure), $\mathbf{Y}$ has a higher likelihood. Under the narrower distribution ( $\sigma_{d\mid\mathbf{o}} << 1$, <span style="color: #ba9a32ff; font-weight: bold;">yellow</span> on the figure), $\mathbf{Y}$ has a lower likelihood, and therefore we must be more aggressive with our steering in order to shift the distribution $p_\tau(\mathbf{A^1} \mid \mathbf{A^\tau}, \mathbf{o})$ of the inpainting objective towards $\mathbf{Y}$.
+To really hammer in the intuition around why a narrower prior data distribution results in a stronger guidance term, let’s look at the problem from one more angle. Recall that the correction term of equation 3 (shown on its own in equation 6) is the VJP, and this points on the direction of steepest descent of the loss function $\mid\mid\mathbf{Y} - \mathbf{\hat{A^1}}\mid\mid^2$. The figure below shows a 1D representation of the data space, with $\mathbf{Y}$ and $\mathbf{\hat{A^1}}$ fixed at specific values. The gaussian curves represent two versions of what $p_\tau(\mathbf{A^1} \mid \mathbf{A^\tau}, \mathbf{o})$  might look like depending on $r_\tau^2$ (and ultimately $\sigma_{d\mid{\mathbf{o}}}$), and recall from equation 7 that the prior distribution $p_1(\mathbf{A^1}\mid \mathbf{o})$ directly impacts $p_\tau(\mathbf{A^1} \mid \mathbf{A^\tau}, \mathbf{o})$ . Under the wider distribution ( $\sigma_{d\mid\mathbf{o}}=1$, <span style="color: #0068ff; font-weight: bold;">blue</span> on the figure), $\mathbf{Y}$ has a higher likelihood. Under the narrower distribution ( $\sigma_{d\mid\mathbf{o}} << 1$, <span style="color: #ba9a32ff; font-weight: bold;">yellow</span> on the figure), $\mathbf{Y}$ has a lower likelihood, and therefore **we must be more aggressive with our steering in order to shift the distribution** $p_\tau(\mathbf{A^1} \mid \mathbf{A^\tau}, \mathbf{o})$ **of the inpainting objective towards** $\mathbf{Y}$.
 
 
 <div style="text-align:center">
@@ -200,8 +205,7 @@ Deciding exactly what $\sigma_{d\mid\mathbf{o}}$ should be, can be done empirica
 <div class="callout">
   <div class="callout-icon">💡</div>
   <div>
-    <strong>Bottom line: </strong>
-    Of course this is a slight over-simplification, as the data distribution can often be multi-modal. Nevertheless, the arguments we present here still stand in spite of that.
+    <strong>Bottom line: A narrower prior $p_1(\mathbf{A^1}| \mathbf{o})$ requires a more aggressive guidance weight.</strong>
   </div>
 </div>
 
@@ -238,7 +242,7 @@ For each plot we will vary the number of flow matching steps $n$, the assumed pr
 
 It’s worth taking the time to check the scales in the y-axes, noting that they are in units of cm. This will give you a good appreciation for how these curves manifest in a real robot rollout.
 
-### Baseline with β=5.0 (n=10 σd=1.0 β=5.0)
+<span style="color: purple; font-weight: bold; font-size: 1.375rem;">Baseline with β=5.0 (n=10 σd=1.0 β=5.0)</span>
 
 These are the settings indicated in RTC, although we use 10 flow matching steps, while sticking to $\beta=5$. Notice the gaps formed between the red and blue chunk, along the vertical gray dotted line. These indicate abrupt transitions, which we don’t want.
 
@@ -247,7 +251,7 @@ These are the settings indicated in RTC, although we use 10 flow matching steps,
   <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%207.png" alt="image 7.png" />
 </div>
 
-### Baseline with β=10.0 (n=10 σd=1.0 β=10.0)
+<span style="color: purple; font-weight: bold; font-size: 1.375rem;">Baseline with β=10.0 (n=10 σd=1.0 β=10.0)</span>
 
 Now we increase $\beta$ to  10 to match $n=10$.
 
@@ -256,7 +260,9 @@ Now we increase $\beta$ to  10 to match $n=10$.
   <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%208.png" alt="image 8.png" />
 </div>
 
-### Ours with smaller σd (n=10 σd=0.2 β=10.0)
+This looks a little better, but there is still room for improvement.
+
+<span style="color: green; font-weight: bold; font-size: 1.375rem;">Ours with smaller σd (n=10 σd=0.2 β=10.0)</span>
 
 With our tweaks, things look a lot better! Notice how only one of the plots has an appreciable discrepancy between blue and red at the transition step, and even that is relatively small.
 
@@ -265,7 +271,7 @@ With our tweaks, things look a lot better! Notice how only one of the plots has 
   <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%209.png" alt="image 9.png" />
 </div>
 
-All of the above plots were done with the same starting (blue) chunks. These happen to be from the start of a particular napkin folding demonstration. We can repeat this analysis for many chunks throughout a several episodes. For each plot above, we can compute the “discrepancy” for each arm at the transition point as the L2 norm between the commanded task space cartesian co-ordinates (`np.linalg.norm(blue_xyzxyz - red_xyzxyz`). Then we can compute the mean and standard deviation over the length of these several episodes. The plot below shows just that for the three settings shared above. The settings are shown on the x axis, the centers of the vertical lines are the means, and the heights of the lines extend one standard deviation below and above the centers.
+All of the above plots were done with the same starting (blue) chunks. These happen to be from the start of a particular napkin folding demonstration. We can repeat this analysis for many chunks throughout several episodes. For each plot above, we can compute the “discrepancy” for each arm at the transition point as the L2 norm between the commanded task space cartesian co-ordinates (`np.linalg.norm(blue_xyz - red_xyz)`). Then we can compute the mean and standard deviation over the chunks and arms. The plot below shows just that for the three settings shared above. The settings are shown on the x axis, the centers of the vertical lines are the means, and the heights of the lines extend one standard deviation below and above the centers.
 
 
 <div style="text-align:center">
@@ -274,11 +280,11 @@ All of the above plots were done with the same starting (blue) chunks. These hap
 
 Our setting with **n=10 σ=0.2 β=10.0** is clearly an improvement over the baselines.
 
-Note: These are the settings used in the video at the top.
+*Note: These are the settings used in the video at the top of this post.*
 
 ### Sweeping $\sigma_{d\mid\mathbf{o}}$
 
-We tried running a sweep over $\sigma_{d\mid\mathbf{o}}$ with our preferred settings for the other parameters. Below we plot the results of the same quantity in the plot above. Clearly, reducing $\sigma_{d\mid\mathbf{o}}$ helps. We decided to stick with $\sigma_{d\mid\mathbf{o}}=0.2$ as the results don’t improve much below that.
+We tried running a sweep over $\sigma_{d\mid\mathbf{o}}$ with our preferred settings for the other parameters. Below we plot the results of the same quantity in the plot above (average of all `np.linalg.norm(blue_xyz - red_xyz)` at the transition point between chunks, over several episodes). Clearly, reducing $\sigma_{d\mid\mathbf{o}}$ helps. We decided to stick with $\sigma_{d\mid\mathbf{o}}=0.2$ as the results don’t improve much below that.
 
 
 <div style="text-align:center">
