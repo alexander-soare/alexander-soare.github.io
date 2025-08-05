@@ -1,0 +1,23 @@
+# Site output
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+
+# Bundle and vendor
+.bundle/
+vendor/
+
+# Logs and temp files
+log/
+tmp/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# VSCode settings
+.vscode/
+
+# Byebug / pry / Ruby debug history
+.byebug_history
