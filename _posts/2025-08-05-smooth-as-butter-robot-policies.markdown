@@ -11,10 +11,12 @@ Lately at Cobot, we’ve been investigating various Vision-Language-Action model
 
 To kick this blog post off, here’s a video (1x speed) of a fine-tuned π₀ policy using RTC and our preferred settings.
 
+<div style="text-align:center">
 <video controls width="640">
   <source src="/assets/2025-08-05-smooth-as-butter-robot-policies/videos/rtc_napkin_fold_notion_format.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
+</div>
 
 # Preliminaries
 
@@ -38,11 +40,17 @@ One challenge with heavier modelling approaches (like VLAs or various flavors of
 
 (d) Just as we approach the end of the runway on the current chunk, the model returns the next chunk, so we can switch to executing those actions instead.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image.png" alt="image.png" />
+</div>
 
 Excellent! But we still have an issue. Often times, the transition from chunk N to chunk N+1 is not going to be smooth. Figure 2 in the [RTC](https://arxiv.org/pdf/2506.07339) paper does a fantastic job of illustrating this problem, so we will not attempt to add any more explanation beyond it.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%201.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%201.png" alt="image 1.png" style="max-width: 500px; width: 100%; height: auto; padding-bottom: 20px;" />
+</div>
 
 The second key idea of RTC is to condition the next chunk generation with the prior chunk. Basically, we want to tell our model to produce a chunk whose start is consistent with the end of the prior chunk. Luckily flow modelling (as used in π₀) offers us a toolkit of conditioning methods, one of which is inpainting. That is, rather than generating our new chunk from scratch, we explicitly tell our model that we want the first part of the new chunk to look like the last part of our prior chunk.
 
@@ -119,7 +127,10 @@ The correction term is then essentially a “vector Jacobian product” (VJP). T
 
 We can’t expect our neural network outputs to be perfect, so $\beta$ is a guidance weight clipping parameter which is used to manage instability, especially when running denoising with a small number of steps (i.e big steps). The RTC work does a sweep on $\beta$, measuring the success rate for the task the robot is meant to be doing, and the maximum acceleration between action chunks (poorer inpainting means sharper discontinuities between chunks, therefore higher acceleration). They find $\beta=5$ to be a happy medium (success rate doesn’t increase above this value, but maximum acceleration does).
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%202.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%202.png" alt="image 2.png" />
+</div>
 
 In the next section we we will put a magnifying glass on one of the key assumptions that led to deriving equation 3 and show that by adjusting the assumption, we can get even smoother robot policies.
 
@@ -154,7 +165,10 @@ In the RTC paper (and equation 5 above) $\sigma_d$ is not mentioned as it is jus
 
 To illustrate why this is important, let’s take an example scenario, where the task is to pick up a blue block, and our robot gripper is above the block. Clearly the only reasonable course of action is to move down towards the block. Considering we had previously collected a large dataset of state-action pairs, and normalized the actions to have mean 0 and standard deviation 1, it’s clear that given the blue block observation, the *conditioned* prior distribution $p_1(\mathbf{A^1}\mid \mathbf{o})$ (<span style="color: green; font-weight: bold;">green</span> ellipsoid in the figure below) has a much smaller variance than the  full dataset (<span style="color: #a9a134; font-weight: bold;">yellow</span> ellipsoid in the figure below).
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%203.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%203.png" alt="image 3.png" style="max-width: 500px; width: 100%; height: auto"/>
+</div>
 
 <div class="callout">
   <div class="callout-icon">💡</div>
@@ -169,11 +183,17 @@ Now we know that $\sigma_{d\mid\mathbf{o}} << 1$. This has non-trivial effect on
 
 Here’s the full guidance weight coefficient $(1-\tau)\tau^{-1}r_\tau^{-2}$, plotted for various values of $\sigma_{d\mid\mathbf{o}}$.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%204.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%204.png" alt="image 4.png" />
+</div>
 
 To really hammer in the intuition around why a narrower prior data distribution results in a stronger guidance term, let’s look at the problem from one more angle. Recall that the correction term of equation 3 (shown on its own in equation 6) is the VJP, and this points on the direction of steepest descent of the loss function $\mid\mid\mathbf{Y} - \mathbf{\hat{A^1}}\mid\mid^2$. The figure below shows a 1D representation of the data space, with $\mathbf{Y}$ and $\mathbf{\hat{A^1}}$ fixed at specific values. The gaussian curves represent two versions of what $p_\tau(\mathbf{A^1} \mid \mathbf{A^\tau}, \mathbf{o})$  might look like depending on $r_\tau^2$ (and ultimately $\sigma_{d\mid{\mathbf{o}}}$), and recall from equation 7 that the prior distribution $p_1(\mathbf{A^1}\mid \mathbf{o})$ directly impacts $p_\tau(\mathbf{A^1} \mid \mathbf{A^\tau}, \mathbf{o})$ . Under the wider distribution ( $\sigma_{d\mid\mathbf{o}}=1$, <span style="color: #0068ff; font-weight: bold;">blue</span> on the figure), $\mathbf{Y}$ has a higher likelihood. Under the narrower distribution ( $\sigma_{d\mid\mathbf{o}} << 1$, <span style="color: #a9a134; font-weight: bold;">yellow</span> on the figure), $\mathbf{Y}$ has a lower likelihood, and therefore we must be more aggressive with our steering in order to shift the distribution $p_\tau(\mathbf{A^1} \mid \mathbf{A^\tau}, \mathbf{o})$ of the inpainting objective towards $\mathbf{Y}$.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%205.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%205.png" alt="image 5.png" style="max-width: 600px; width: 100%; height: auto"/>
+</div>
 
 Deciding exactly what $\sigma_{d\mid\mathbf{o}}$ should be, can be done empirically via a hyperparameter sweep (which will be included below), but one can also reason about an appropriate value by just considering the whole action space, and how much that’s narrowed down when we want to move the end effector in a specific direction.
 
@@ -199,7 +219,10 @@ multiplies $\mathbf{v} _ {\Pi {\text{GDM}}}$ by $1/n$ ($n$ being the number of d
 
 To appreciate the effect of $\beta$, here’s the same plot of guidance scales as above, now clipped with  $\beta=10$.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%206.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%206.png" alt="image 6.png" />
+</div>
 
 # Experiments: what smooth-as-butter robot policies look like
 
@@ -219,23 +242,35 @@ It’s worth taking the time to check the scales in the y-axes, noting that they
 
 These are the settings indicated in RTC, although we use 10 flow matching steps, while sticking to $\beta=5$. Notice the gaps formed between the red and blue chunk, along the vertical gray dotted line. These indicate abrupt transitions, which we don’t want.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%207.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%207.png" alt="image 7.png" />
+</div>
 
 ### Baseline with β=10.0 (n=10 σd=1.0 β=10.0)
 
 Now we increase $\beta$ to  10 to match $n=10$.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%208.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%208.png" alt="image 8.png" />
+</div>
 
 ### Ours with smaller σd (n=10 σd=0.2 β=10.0)
 
 With our tweaks, things look a lot better! Notice how only one of the plots has an appreciable discrepancy between blue and red at the transition step, and even that is relatively small.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%209.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%209.png" alt="image 9.png" />
+</div>
 
 All of the above plots were done with the same starting (blue) chunks. These happen to be from the start of a particular napkin folding demonstration. We can repeat this analysis for many chunks throughout a several episodes. For each plot above, we can compute the “discrepancy” for each arm at the transition point as the L2 norm between the commanded task space cartesian co-ordinates (`np.linalg.norm(blue_xyzxyz - red_xyzxyz`). Then we can compute the mean and standard deviation over the length of these several episodes. The plot below shows just that for the three settings shared above. The settings are shown on the x axis, the centers of the vertical lines are the means, and the heights of the lines extend one standard deviation below and above the centers.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%2010.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%2010.png" alt="image 10.png" />
+</div>
 
 Our setting with **n=10 σ=0.2 β=10.0** is clearly an improvement over the baselines.
 
@@ -245,23 +280,35 @@ Note: These are the settings used in the video at the top.
 
 We tried running a sweep over $\sigma_{d\mid\mathbf{o}}$ with our preferred settings for the other parameters. Below we plot the results of the same quantity in the plot above. Clearly, reducing $\sigma_{d\mid\mathbf{o}}$ helps. We decided to stick with $\sigma_{d\mid\mathbf{o}}=0.2$ as the results don’t improve much below that.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%2011.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%2011.png" alt="image 11.png" />
+</div>
 
 ### Sweeping $\beta$
 
 We sweeped $\beta$ for various values of $n$ to check our claim that we can safely scale $\beta$ with $n$. For $n=10$, we see good discrepancy metrics for $\beta \in [10, 16]$. But we need to remember that these results are based on just a few episodes.  When we tried this with actual robot rollouts we found it was safer to stick to $\beta=10$, with $\beta=14$ causing erratic robot movements.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%2012.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%2012.png" alt="image 12.png" />
+</div>
 
 With 20 denoising steps, results indicate good discrepancy metrics for $\beta \in [20, 32]$.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%2013.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%2013.png" alt="image 13.png" />
+</div>
 
 In real robot rollouts we found using $\beta=25$ safely avoided instabilities, but we see no good reason to push beyond $\beta = 20$.
 
 With 5 denoising steps, we see good discrepancy metrics for $\beta \in [5, 8]$.
 
-![image.png](/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%2014.png)
+
+<div style="text-align:center">
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image%2014.png" alt="image 14.png" />
+</div>
 
 Generally our rule of thumb is to stick with the $\beta=n$ scaling. It removes a hyperparameter, hasn’t failed for us (yet), and there’s little to be gained by trying higher values of $\beta$.
 
