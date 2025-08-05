@@ -42,7 +42,7 @@ One challenge with heavier modelling approaches (like VLAs or various flavors of
 
 
 <div style="text-align:center">
-  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image.png" alt="image.png" />
+  <img src="/assets/2025-08-05-smooth-as-butter-robot-policies/images/image.png" alt="image.png" style="padding-bottom: 20px;"/>
 </div>
 
 Excellent! But we still have an issue. Often times, the transition from chunk N to chunk N+1 is not going to be smooth. Figure 2 in the [RTC](https://arxiv.org/pdf/2506.07339) paper does a fantastic job of illustrating this problem, so we will not attempt to add any more explanation beyond it.
