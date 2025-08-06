@@ -7,7 +7,7 @@ description: "A practical tweak for smoother robot policy rollouts using Real-Ti
 ---
 # Introduction
 
-Lately at Cobot, we’ve been investigating various Vision-Language-Action models (VLAs), and have found a need to have smooth reactive policy rollouts while still maintaining the raw power of these heavy models. [Real-Time Action Chunking](https://www.physicalintelligence.company/research/real_time_chunking) (RTC) is one recent answer to combining these two aspects (slow inference while maintaining smoothness and reactivity). When we tried it ourselves, we noticed small but perceptible discontinuities between chunks, and found there still seemed to be room for improvement. In this article, **we’ll share a tweak we made to their algorithm to get smooth-as-butter robot policies.**
+Lately at [Cobot](https://www.co.bot/), we’ve been investigating various Vision-Language-Action models (VLAs), and have found a need to have smooth reactive policy rollouts while still maintaining the raw power of these heavy models. [Real-Time Action Chunking](https://www.physicalintelligence.company/research/real_time_chunking) (RTC) is one recent answer to combining these two aspects (slow inference while maintaining smoothness and reactivity). When we tried it ourselves, we noticed small but perceptible discontinuities between chunks, and found there still seemed to be room for improvement. In this article, **we’ll share a tweak we made to their algorithm to get smooth-as-butter robot policies.**
 
 To kick this blog post off, here’s a video (1x speed) of a fine-tuned π₀ policy using RTC and our preferred settings.
 
