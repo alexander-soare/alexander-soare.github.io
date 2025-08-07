@@ -330,3 +330,17 @@ The key take-away is that a stronger guidance weight is appropriate in action tr
     we tried these experiment in a very restricted setting (one task, just a handful of episodes). Although we do have a strong belief that these insights will be applicable to other settings as well.
   </div>
 </div>
+
+<hr style="border: none; border-top: 1px solid #e0e0e0; margin: 32px 0;" />
+
+Please feel free to cite this work as
+
+```
+@misc{soare2025smoothrobotpolicies,
+  author = {Alexander Soare},
+  title = {Smooth-As-Butter Robot Policies},
+  year = {2025},
+  url = {https://alexander-soare.github.io/robotics/2025/08/05/smooth-as-butter-robot-policies.html},
+  note = {Blog post}
+}
+```
