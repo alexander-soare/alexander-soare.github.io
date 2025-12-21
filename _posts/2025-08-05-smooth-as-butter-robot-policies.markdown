@@ -18,6 +18,11 @@ To kick this blog post off, here’s a video (1x speed) of a fine-tuned π₀ po
 </video>
 </div>
 
+---
+
+**Edit (Dec 21, 2025)** - A follow-up talk to this article is now available [here on YouTube](https://youtu.be/OeiyQ5SS9R8?si=KT5eJ4lEM6mOK1oc).
+
+
 # Preliminaries
 
 Ever since [Diffusion Policy](https://diffusion-policy.cs.columbia.edu/) and [ACT](https://arxiv.org/abs/2304.13705), the predominant approach to robot learning has been imitation learning with observations (camera streams, proprioception)  as inputs, and sequences (aka “chunks”) of actions (usually positional targets in either joint space or task space) as targets. The key motivator behind predicting action chunks, rather than individual actions, is to match the strong temporal correlation seen in action sequences produced by a human demonstrator.
